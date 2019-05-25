@@ -13,7 +13,7 @@ $consolePtr = [Console.Window]::GetConsoleWindow()
 
 # for talking across runspaces.
 $sync = [Hashtable]::Synchronized(@{})
-
+$config = [Hashtable]::Synchronized(@{})
 
 $Form                            = New-Object system.Windows.Forms.Form
 $Form.ClientSize                 = '510,381'
@@ -145,7 +145,7 @@ $sync.source          = $source
 $sync.destination     = $destination
 $sync.sourcebrowse    = $sourcebrowse
 $sync.destbrowse      = $destbrowse
-$sync.fileprocessed   = $filesprocessed
+$sync.filesprocessed  = $filesprocessed
 $sync.initialsize     = $initialsize
 $sync.currentsize     = $currentsize
 $sync.percentsaved    = $percentsaved
@@ -158,7 +158,7 @@ $folderbrowse = New-Object System.Windows.Forms.FolderBrowserDialog
 $folderbrowse.ShowNewFolderButton = $true
 $folderbrowse.RootFolder = 'MyComputer'
 
-$Form.controls.AddRange(@($Label1,$sync.source,$Label2,$sync.destination,$sync.sourcebrowse,$sync.destbrowse,$sync.fileprocessed,$label3,
+$Form.controls.AddRange(@($Label1,$sync.source,$Label2,$sync.destination,$sync.sourcebrowse,$sync.destbrowse,$sync.filesprocessed,$label3,
     $sync.initialsize,$sync.currentsize,$sync.percentsaved,$sync.progresstext,$sync.progressbar,$Label7,$sync.start,$sync.handbrakeconfig
 ))
 
@@ -174,10 +174,9 @@ $sync.destbrowse.Add_Click({
     $sync.destination.text = $Folderbrowse.SelectedPath
 })
 
-
 $sync.start.Add_Click({
     $script:handbrake = [PowerShell]::Create().AddScript({
-        
+        Invoke-Expression $sync.handbrake
     })
     $runspace = [RunspaceFactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"
@@ -188,88 +187,67 @@ $sync.start.Add_Click({
     $script:handbrake.BeginInvoke()
 })
 
-
-
-
-
-<#   4675
-$location = Read-Host -Prompt 'Input Path to Videos'
- 
-$finished = $location + "\" + "finished";
-
-mkdir $finished;
-
-# Path to HandbrakeCLI
-$handbrakecli = "" 
-
-# What video format to search for. Can't figure out how to do multiple.
-$filter = "*.mkv" 
-
-# HandbrakeCLI arguments. -i and -o are handled elsewhere
-$arguments = "-e nvenc_h265 --encoder-preset slow -q 22 -E copy --comb-detect=fast --decomb=bob" 
- 
-$sizel = 0
-$filelist = Get-ChildItem $location -filter $filter -exclude "_*" -recurse
-$num = $filelist | Measure-Object
-$filecount = $num.count
-$sizea = Get-ChildItem $location -recurse | Measure-Object -Sum Length
-$sizeb = "{0:N3}" -f ($sizea.sum/1gb)
-$i = 0;
-ForEach ($file in $filelist)
-{
-    $i++;
-
-    # The two lines below automatically create the input and output file paths for HandbrakeCLI. It is not recommended to change this unless you know what you're doing.
-    $oldfile = $file.DirectoryName + "\" + $file.BaseName + $file.Extension;
-
-    # Change ".mp4" to $file.Extension to keep original filetype
-    $newfile = $finished + "\" + $file.BaseName + ".mp4"; 
- 
-	# Next 8 lines handle progress and file size calculations
-    $progress = ($i / $filecount) * 100
-    $progress = [Math]::Round($progress,2)
-    $sizec = Get-ChildItem $location -recurse | Measure-Object -Sum Length
-    $sized = "{0:N3}" -f ($sizec.sum/1gb)
-    $saved = (($sizeb - $sizee) / $sizeb) * 100
-    $saved = [Math]::Round($saved,2)
-	$sizef = get-childitem $oldfile | measure-object -sum length
-	$sizeg = "{0:N3}" -f ($sizef.sum/1gb)
- 
-    Clear-Host
-    Write-Host -------------------------------------------------------------------------------
-    Write-Host Handbrake Batch Encoding
-    Write-Host "Processing    - $oldfile"
-    Write-Host "Progress      - $i of $filecount"
-    Write-Host "Initial size  - $sizeb GB"
-    Write-Host "Current size  - $sizee GB"
-    Write-Host "Percent saved - $saved%"
-    Write-Host -------------------------------------------------------------------------------
- 
-    Start-Process $handbrakecli -ArgumentList " $arguments -i `"$oldfile`" -o `"$newfile`"" -Wait -WindowStyle minimized
-	$sizeh = get-childitem $newfile | measure-object -sum length
-	$sizei = "{0:N3}" -f ($sizeh.sum/1gb)
-	$sizel = $sizel + ($sizeg - $sizei)
-	$sizee = $sizeb - $sizel
+function HANDBRAKE {
+    Invoke-Expression $sync.disablecontrols
+    $sync.progressbar.value = 0
+    $files = get-childitem $sync.source.text -recurse -file | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length) }}
+    $config = $sync.handbrakeconfig.text
+    $start_size = [math]::round(((($files | measure-object -property Bytes -sum).sum) / 1MB),2)
+    $new_size = $start_size
+    $sync.initialsize.text = "Initial Size: " + $start_size + " MBs"
+    $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
+    $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.count
+    $sync.percentsaved.text = "Percent Saved: 0%"
+    foreach ($file in $files) {
+        $count++
+        $in = $file.fullname
+        $sync.progresstext.text = $file.fullname
+        $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
+        new-item $dest -force
+        Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
+        $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.##}" -f ($_.Length / 1MB) }}
+        $new_file = $new_file.bytes
+        $old_file = [math]::round(($file.bytes / 1MB),2)
+        $new_size = [math]::round(($new_size - ($old_file - $new_file)),2)
+        $sync.currentsize.text = "Current Size: " + $new_size + " MBs"
+        $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
+        $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
+        $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count
+        $sync.progressbar.value = ($count / $files.count) * 100
+    }
+    Invoke-Expression $sync.enablecontrols
+    $script:handbrake.runspace.dispose()
+    $script:handbrake.dispose()
 }
-$sizec = Get-ChildItem $finished -recurse | Measure-Object -Sum Length
-$sized = "{0:N3}" -f ($sizec.sum/1gb)
-$saved = (($sizeb - $sized) / $sizeb) * 100
-$saved = [Math]::Round($saved,2)
-clear-host
-Write-Host ----------------------------
-Write-Host Handbrake Batch Encoding
-Write-Host "Files processed - $filecount"
-Write-Host "Initial size    - $sizeb GB"
-Write-Host "Current Size    - $sized GB"
-Write-Host "Percent saved   - $saved%"
-Write-Host ----------------------------
-Write-Host       
-Write-Host Press any key to close
-cmd /c pause | out-null
-#>
+$sync.handbrake = get-content Function:\HANDBRAKE
 
+function ENABLECONTROLS {
+    $sync.source.enabled          = $true
+    $sync.destination.enabled     = $true
+    $sync.sourcebrowse.enabled    = $true
+    $sync.destbrowse.enabled      = $true
+    $sync.start.enabled           = $true
+    $sync.handbrakeconfig.enabled = $true
+}
+$sync.enablecontrols = get-content Function:\ENABLECONTROLS
 
+function DISABLECONTROLS {
+    $sync.source.enabled          = $false
+    $sync.destination.enabled     = $false
+    $sync.sourcebrowse.enabled    = $false
+    $sync.destbrowse.enabled      = $false
+    $sync.start.enabled           = $false
+    $sync.handbrakeconfig.enabled = $false
+}
+$sync.disablecontrols = get-content Function:\DISABLECONTROLS
 
-
+$config = import-clixml ($ENV:userprofile + "\handbrakeconfig.xml")
+$sync.handbrakeconfig.text = $config.handbrake
 
 [void]$Form.ShowDialog()
+
+$config.handbrake = $sync.handbrakeconfig.Text
+$config | export-clixml ($ENV:userprofile + "\handbrakeconfig.xml")
+
+$script:handbrake.runspace.dispose()
+$script:handbrake.dispose()

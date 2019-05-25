@@ -176,7 +176,13 @@ $sync.destbrowse.Add_Click({
 
 $sync.start.Add_Click({
     $script:handbrake = [PowerShell]::Create().AddScript({
-        Invoke-Expression $sync.handbrake
+        if ( -not [String]::IsNullOrWhiteSpace($sync.destination.text) ) {
+            Invoke-Expression $sync.handbrake
+        } else {
+            $sync.progresstext.text = "No destination selected"
+            $script:handbrake.runspace.dispose()
+            $script:handbrake.dispose()
+        }
     })
     $runspace = [RunspaceFactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"

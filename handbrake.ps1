@@ -17,7 +17,7 @@ $config = [Hashtable]::Synchronized(@{})
 
 $Form                            = New-Object system.Windows.Forms.Form
 $Form.ClientSize                 = '510,381'
-$Form.text                       = "Form"
+$Form.text                       = "Video Resize"
 $Form.TopMost                    = $false
 $form.maximizebox                = $false
 $form.formborderstyle            = 'Fixed3d'

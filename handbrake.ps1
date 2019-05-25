@@ -189,13 +189,21 @@ $sync.start.Add_Click({
 
 function HANDBRAKE {
     Invoke-Expression $sync.disablecontrols
+    $count = 0
     $sync.progressbar.value = 0
-    $files = get-childitem $sync.source.text -recurse -file | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length) }}
+    $files = get-childitem $sync.source.text -recurse -file | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
     $config = $sync.handbrakeconfig.text
-    $start_size = [math]::round(((($files | measure-object -property Bytes -sum).sum) / 1MB),2)
+    $size = ($files | measure-object -property Bytes -sum).sum
+    if (($size) -ge "10000") { 
+        $start_size = [math]::round(($size / 1KB),3)
+        $sync.initialsize.text = "Initial Size: " + $start_size + " GBs"
+        $sync.currentsize.text = "Current Size: " + $start_size + " GBs"
+    } else {
+        $start_size = [math]::round(($size),2)
+        $sync.initialsize.text = "Initial Size: " + $start_size + " MBs"
+        $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
+    }
     $new_size = $start_size
-    $sync.initialsize.text = "Initial Size: " + $start_size + " MBs"
-    $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
     $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.count
     $sync.percentsaved.text = "Percent Saved: 0%"
     foreach ($file in $files) {
@@ -205,11 +213,19 @@ function HANDBRAKE {
         $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
         new-item $dest -force
         Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
-        $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.##}" -f ($_.Length / 1MB) }}
-        $new_file = $new_file.bytes
-        $old_file = [math]::round(($file.bytes / 1MB),2)
-        $new_size = [math]::round(($new_size - ($old_file - $new_file)),2)
-        $sync.currentsize.text = "Current Size: " + $new_size + " MBs"
+        if (($size) -ge "10000") { 
+            $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.###}" -f ($_.Length / 1GB) }}
+            $new_file = $new_file.bytes
+            $old_file = $file.bytes / 1KB
+            $new_size = [math]::round(($new_size - ($old_file - $new_file)),3)
+            $sync.currentsize.text = "Current Size: " + $new_size + " GBs"
+        } else {
+            $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.##}" -f ($_.Length / 1MB) }}
+            $new_file = $new_file.bytes
+            $old_file = $file.bytes
+            $new_size = [math]::round(($new_size - ($old_file - $new_file)),2)
+            $sync.currentsize.text = "Current Size: " + $new_size + " MBs"
+        }
         $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
         $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
         $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count

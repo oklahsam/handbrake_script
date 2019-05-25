@@ -211,8 +211,10 @@ function HANDBRAKE {
         $in = $file.fullname
         $sync.progresstext.text = $file.fullname
         $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
-        new-item $dest -force
-        Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
+        if ((test-path $dest) -eq $false) {
+            new-item $dest -force
+            Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
+        }
         if (($size) -ge "10000") { 
             $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.###}" -f ($_.Length / 1GB) }}
             $new_file = $new_file.bytes
@@ -229,7 +231,7 @@ function HANDBRAKE {
         $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
         $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
         $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count
-        $sync.progressbar.value = ($count / $files.count) * 100
+        $sync.progressbar.value = ($old_file / $start_size) * 100
     }
     Invoke-Expression $sync.enablecontrols
     $script:handbrake.runspace.dispose()

@@ -233,6 +233,7 @@ function HANDBRAKE {
         $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count
         $sync.progressbar.value = $sync.progressbar.value + (($old_file / $start_size) * 100)
     }
+    $sync.progresstext.text = "Done"
     Invoke-Expression $sync.enablecontrols
     $script:handbrake.runspace.dispose()
     $script:handbrake.dispose()

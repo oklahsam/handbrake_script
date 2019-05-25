@@ -231,7 +231,7 @@ function HANDBRAKE {
         $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
         $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
         $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count
-        $sync.progressbar.value = ($old_file / $start_size) * 100
+        $sync.progressbar.value = $sync.progressbar.value + (($old_file / $start_size) * 100)
     }
     Invoke-Expression $sync.enablecontrols
     $script:handbrake.runspace.dispose()

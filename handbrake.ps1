@@ -210,7 +210,7 @@ function HANDBRAKE {
     Invoke-Expression $sync.disablecontrols
     $count = 0
     $sync.progressbar.value = 0
-    $files = get-childitem $sync.source.text -recurse -file | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
+    $files = get-childitem $sync.source.text -recurse -file -include *.mp4,*.mkv,*.avi,*.mov | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
     $config = $sync.handbrakeconfig.text
     $size = ($files | measure-object -property Bytes -sum).sum
     if (($size) -ge "10000") { 
@@ -223,7 +223,7 @@ function HANDBRAKE {
         $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
     }
     $new_size = $start_size
-    $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.count
+    $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.fullname.count
     $sync.percentsaved.text = "Percent Saved: 0%"
     foreach ($file in $files) {
         $count++
@@ -249,7 +249,7 @@ function HANDBRAKE {
         }
         $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
         $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
-        $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.count
+        $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.fullname.count
         $sync.progressbar.value = $sync.progressbar.value + (($old_file / $start_size) * 100)
     }
     $sync.progresstext.text = "Done"

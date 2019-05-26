@@ -211,48 +211,50 @@ function HANDBRAKE {
     $count = 0
     $sync.progressbar.value = 0
     $files = get-childitem $sync.source.text -recurse -file -include *.mp4,*.mkv,*.avi,*.mov | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
-    $config = $sync.handbrakeconfig.text
-    $size = ($files | measure-object -property Bytes -sum).sum
-    if (($size) -ge "10000") { 
-        $start_size = [math]::round(($size / 1KB),3)
-        $sync.initialsize.text = "Initial Size: " + $start_size + " GBs"
-        $sync.currentsize.text = "Current Size: " + $start_size + " GBs"
-    } else {
-        $start_size = [math]::round(($size),2)
-        $sync.initialsize.text = "Initial Size: " + $start_size + " MBs"
-        $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
-    }
-    $new_size = $start_size
-    $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.fullname.count
-    $sync.percentsaved.text = "Percent Saved: 0%"
-    foreach ($file in $files) {
-        $count++
-        $in = $file.fullname
-        $sync.progresstext.text = $file.fullname
-        $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
-        if ((test-path $dest) -eq $false) {
-            new-item $dest -force
-            Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
-        }
+    if ($files.fullname.count -gt 0) {
+        $config = $sync.handbrakeconfig.text
+        $size = ($files | measure-object -property Bytes -sum).sum
         if (($size) -ge "10000") { 
-            $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.###}" -f ($_.Length / 1GB) }}
-            $new_file = $new_file.bytes
-            $old_file = $file.bytes / 1KB
-            $new_size = [math]::round(($new_size - ($old_file - $new_file)),3)
-            $sync.currentsize.text = "Current Size: " + $new_size + " GBs"
+            $start_size = [math]::round(($size / 1KB),3)
+            $sync.initialsize.text = "Initial Size: " + $start_size + " GBs"
+            $sync.currentsize.text = "Current Size: " + $start_size + " GBs"
         } else {
-            $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.##}" -f ($_.Length / 1MB) }}
-            $new_file = $new_file.bytes
-            $old_file = $file.bytes
-            $new_size = [math]::round(($new_size - ($old_file - $new_file)),2)
-            $sync.currentsize.text = "Current Size: " + $new_size + " MBs"
+            $start_size = [math]::round(($size),2)
+            $sync.initialsize.text = "Initial Size: " + $start_size + " MBs"
+            $sync.currentsize.text = "Current Size: " + $start_size + " MBs"
         }
-        $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
-        $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
-        $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.fullname.count
-        $sync.progressbar.value = $sync.progressbar.value + (($old_file / $start_size) * 100)
-    }
-    $sync.progresstext.text = "Done"
+        $new_size = $start_size
+        $sync.filesprocessed.text = "Files Processed: 0 out of " + $files.fullname.count
+        $sync.percentsaved.text = "Percent Saved: 0%"
+        foreach ($file in $files) {
+            $count++
+            $in = $file.fullname
+            $sync.progresstext.text = $file.fullname
+            $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
+            if ((test-path $dest) -eq $false) {
+                new-item $dest -force
+                Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
+            }
+            if (($size) -ge "10000") { 
+                $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.###}" -f ($_.Length / 1GB) }}
+                $new_file = $new_file.bytes
+                $old_file = $file.bytes / 1KB
+                $new_size = [math]::round(($new_size - ($old_file - $new_file)),3)
+                $sync.currentsize.text = "Current Size: " + $new_size + " GBs"
+            } else {
+                $new_file =  get-childitem $dest -recurse -file | Select-Object @{Name="Bytes";Expression={ "{0:0.##}" -f ($_.Length / 1MB) }}
+                $new_file = $new_file.bytes
+                $old_file = $file.bytes
+                $new_size = [math]::round(($new_size - ($old_file - $new_file)),2)
+                $sync.currentsize.text = "Current Size: " + $new_size + " MBs"
+            }
+            $percent = [math]::round(((($start_size - $new_size) / $start_size) * 100),2)
+            $sync.percentsaved.text = "Percent Saved: " + $percent + "%"
+            $sync.filesprocessed.text = "Files Processed: " + $count + " out of " + $files.fullname.count
+            $sync.progressbar.value = $sync.progressbar.value + (($old_file / $start_size) * 100)
+        }
+        $sync.progresstext.text = "Done"
+    } else { $sync.progresstext.text = "No video files in source" }
     Invoke-Expression $sync.enablecontrols
     $script:handbrake.runspace.dispose()
     $script:handbrake.dispose()

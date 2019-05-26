@@ -141,6 +141,13 @@ $StartButton.height              = 30
 $StartButton.location            = New-Object System.Drawing.Point(12,340)
 $StartButton.Font                = 'Microsoft Sans Serif,10'
 
+$hbdefault                      = New-Object system.Windows.Forms.Button
+$hbdefault.text                 = "Default"
+$hbdefault.width                = 45
+$hbdefault.height               = 17
+$hbdefault.location             = New-Object System.Drawing.Point(453,240)
+$hbdefault.Font                 = 'Microsoft Sans Serif,7'
+
 $sync.source          = $source
 $sync.destination     = $destination
 $sync.sourcebrowse    = $sourcebrowse
@@ -153,13 +160,15 @@ $sync.handbrakeconfig = $handbrakeconfig
 $sync.progresstext    = $progresstext
 $sync.progressbar     = $ProgressBar
 $sync.start           = $StartButton
+$sync.hbdefault       = $hbdefault
 
 $folderbrowse = New-Object System.Windows.Forms.FolderBrowserDialog
 $folderbrowse.ShowNewFolderButton = $true
 $folderbrowse.RootFolder = 'MyComputer'
 
 $Form.controls.AddRange(@($Label1,$sync.source,$Label2,$sync.destination,$sync.sourcebrowse,$sync.destbrowse,$sync.filesprocessed,$label3,
-    $sync.initialsize,$sync.currentsize,$sync.percentsaved,$sync.progresstext,$sync.progressbar,$Label7,$sync.start,$sync.handbrakeconfig
+    $sync.initialsize,$sync.currentsize,$sync.percentsaved,$sync.progresstext,$sync.progressbar,$Label7,$sync.start,$sync.handbrakeconfig,
+    $sync.hbdefault
 ))
 
 $sync.sourcebrowse.Add_Click({
@@ -172,6 +181,10 @@ $sync.destbrowse.Add_Click({
     $folderbrowse.SelectedPath = ""
     $null = $Folderbrowse.ShowDialog()
     $sync.destination.text = $Folderbrowse.SelectedPath
+})
+
+$sync.hbdefault.add_click({
+    $handbrakeconfig.text = "-e nvenc_h264  -q 22 -E copy --comb-detect=fast --decomb=bob"
 })
 
 $sync.start.Add_Click({
@@ -253,6 +266,7 @@ function ENABLECONTROLS {
     $sync.destbrowse.enabled      = $true
     $sync.start.enabled           = $true
     $sync.handbrakeconfig.enabled = $true
+    $sync.hbdefault               = $true
 }
 $sync.enablecontrols = get-content Function:\ENABLECONTROLS
 
@@ -263,6 +277,7 @@ function DISABLECONTROLS {
     $sync.destbrowse.enabled      = $false
     $sync.start.enabled           = $false
     $sync.handbrakeconfig.enabled = $false
+    $sync.hbdefault               = $false
 }
 $sync.disablecontrols = get-content Function:\DISABLECONTROLS
 

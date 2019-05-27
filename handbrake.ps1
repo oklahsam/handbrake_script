@@ -184,7 +184,7 @@ $sync.destbrowse.Add_Click({
 })
 
 $sync.hbdefault.add_click({
-    $handbrakeconfig.text = "-e nvenc_h264  -q 22 -E copy --comb-detect=fast --decomb=bob"
+    $handbrakeconfig.text = "-e nvenc_h264  -q 22 -E copy"
 })
 
 $sync.start.Add_Click({

@@ -211,6 +211,11 @@ function HANDBRAKE {
     $count = 0
     $sync.progressbar.value = 0
     $files = get-childitem $sync.source.text -recurse -file -include *.mp4,*.mkv,*.avi,*.mov | Select-Object extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
+    $sourcetext = $sync.source.text
+    if ($files.fullname.count -eq 0) {
+        $files = get-childitem ($sync.source.text + "*\*") -recurse -file -include *.mp4,*.mkv,*.avi,*.mov | Select-Object directory,extension,fullName,basename, @{Name="Bytes";Expression={ "{0:N0}" -f ($_.Length / 1MB) }}
+        $sourcetext = $sync.source.text.substring(0, $sync.source.text.lastindexof('\'))
+    }
     if ($files.fullname.count -gt 0) {
         $config = $sync.handbrakeconfig.text
         $size = ($files | measure-object -property Bytes -sum).sum
@@ -230,7 +235,7 @@ function HANDBRAKE {
             $count++
             $in = $file.fullname
             $sync.progresstext.text = $file.fullname
-            $dest = $file.fullname -replace [regex]::Escape($sync.source.text), $sync.destination.text -replace $file.Extension, ".mp4"
+            $dest = $file.fullname -replace [regex]::Escape($sourcetext), $sync.destination.text -replace $file.Extension, ".mp4"
             if ((test-path $dest) -eq $false) {
                 new-item $dest -force
                 Start-Process "C:\handbrake\HandBrakeCLI.exe" -ArgumentList " $config -i `"$in`" -o `"$dest`"" -Wait -WindowStyle minimized
